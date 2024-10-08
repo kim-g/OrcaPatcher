@@ -11,6 +11,7 @@ class Patcher
 protected:
 	filesystem::path FullPath, NewPath;
 	string File, Name, Ext, Path;
+	const string empty;
 
 public:
 	Patcher(string FileName)
@@ -37,8 +38,9 @@ public:
 			cout << "Cannot open file \"" << FullPath.string() << "\"" << endl;
 			return;
 		}
-		string NewFileName = 
-		out.open("hello.txt");      // открываем файл для записи
+		filesystem::path NewFileName(Path);
+		NewFileName /= Name + "_v4" + Ext;
+		out.open(NewFileName,ios_base::trunc);      // открываем файл для записи
 		if (!out.is_open())
 		{
 			cout << "Cannot open file \"" << FullPath.string() << "\"" << endl;
@@ -49,9 +51,47 @@ public:
 		string line;
 		while (getline(in, line))
 		{
-			std::cout << line << std::endl;
+			out << line << std::endl;
+			if (line.find("VIBRATIONAL FREQUENCIES", 0) != std::string::npos)
+			{
+				for (int i = 0; i < 4; i++)
+				{
+					getline(in, line);
+					out << line << std::endl;
+				}
+
+				bool Patching = true;
+				while (Patching)
+				{
+					getline(in, line);
+					if (line == "")
+					{
+						Patching = false;
+						out << line << std::endl;
+						break;
+					}
+
+					if (line[4] == ':')
+					{
+						patched = false;
+						out << line << std::endl;
+						continue;
+					}
+
+					line.replace(0, 2, empty);
+					size_t start{ line.find(":") };
+					line.replace(start, 1, ":  ");
+					out << line << std::endl;
+				}
+			}
 		}
 
 		in.close();
+
+		if (patched)
+			cout << "Патч файла «" + File + "» завершён" << endl;
+		else
+			cout << "Патч файла «" + File + "» не выполнен. Файл уже имеет правильную структуру." << endl;
+
 	}
 };
